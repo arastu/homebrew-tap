@@ -20,6 +20,40 @@ class Paqet < Formula
     ]
 
     system "go", "build", *std_go_args(ldflags: ldflags), "./cmd"
+    pkgshare.install "example/client.yaml.example", "example/server.yaml.example"
+  end
+
+  def post_install
+    (etc/"paqet").mkpath
+    (var/"paqet").mkpath
+    conf = etc/"paqet/config.yaml"
+    conf.write (pkgshare/"client.yaml.example").read unless conf.exist?
+  end
+
+  service do
+    run [opt_bin/"paqet", "run", "-c", etc/"paqet/config.yaml"]
+    keep_alive true
+    working_dir var/"paqet"
+    log_path var/"log/paqet.log"
+    error_log_path var/"log/paqet.log"
+    require_root true
+  end
+
+  def caveats
+    <<~EOS
+      paqet requires root privileges for raw sockets.
+      Edit #{etc}/paqet/config.yaml and set role/network values before starting.
+
+      Start:
+        sudo brew services start paqet
+
+      Stop:
+        sudo brew services stop paqet
+
+      Example configs:
+        #{opt_pkgshare}/client.yaml.example
+        #{opt_pkgshare}/server.yaml.example
+    EOS
   end
 
   test do
