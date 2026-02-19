@@ -2,8 +2,8 @@ class Paqet < Formula
   desc "Bidirectional packet-level proxy using KCP and raw socket transport"
   homepage "https://github.com/hanselime/paqet"
   url "https://github.com/hanselime/paqet.git",
-      tag:      "v1.0.0-alpha.16",
-      revision: "ccadb028fd15896228ae36645389888e0ebf486a"
+      tag:      "v1.0.0-alpha.17",
+      revision: "a5c5f62c827bb344bbb91a072988b17b0cf9d1f3"
   license "MIT"
   head "https://github.com/hanselime/paqet.git", branch: "main"
 
