@@ -45,6 +45,14 @@ class Barrly < Formula
     SH
   end
 
+  # Re-sign with the user's "Barrly Code Signing" identity (see scripts/make-signing-identity.sh) so the
+  # code identity, and with it Accessibility and other privacy grants, survives upgrades.
+  def post_install
+    identity = "Barrly Code Signing"
+    return unless Utils.safe_popen_read("/usr/bin/security", "find-identity", "-v", "-p", "codesigning").include?(identity)
+    system "/usr/bin/codesign", "--force", "--deep", "--sign", identity, prefix/"Barrly.app"
+  end
+
   service do
     run [opt_prefix/"Barrly.app/Contents/MacOS/Barrly"]
     keep_alive true
@@ -54,7 +62,11 @@ class Barrly < Formula
 
   def caveats
     <<~EOS
-      Barrly.app is at #{opt_prefix}/Barrly.app (ad-hoc signed, built on this machine).
+      Barrly.app is at #{opt_prefix}/Barrly.app, built on this machine.
+
+      Privacy grants (Accessibility for the input lock, Calendars) stick across upgrades only with a
+      stable signing identity. Create one once with the repo's scripts/make-signing-identity.sh;
+      the formula then signs with it automatically (otherwise the app is ad-hoc signed).
 
       Start it with `barrly`, or at login with either
         brew services start barrly
