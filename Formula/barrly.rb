@@ -32,25 +32,28 @@ class Barrly < Formula
 
     (bin/"barrly").write <<~SH
       #!/bin/bash
-      # barrly            launch the bar          barrly zen|refresh|settings   send a command
+      # barrly            launch the bar          barrly zen|refresh|settings|lock   send a command
+      # barrly sign       re-sign Barrly.app with the local "Barrly Code Signing" identity (see caveats)
       app="#{opt_prefix}/Barrly.app"
+      sign() {
+        kc="$HOME/Library/Keychains/barrly-signing.keychain-db"
+        [ -f "$kc" ] || return 0
+        /usr/bin/codesign -d -r- "$app" 2>&1 | grep -q 'certificate root' && return 0
+        /usr/bin/security unlock-keychain -p barrly "$kc" 2>/dev/null || true
+        /usr/bin/codesign --force --deep --keychain "$kc" --sign "Barrly Code Signing" "$app" 2>/dev/null \
+          && echo "barrly: signed Barrly.app with the Barrly Code Signing identity"
+      }
       case "${1:-}" in
         zen)      open "barrly://mode/zen" ;;
         refresh)  open "barrly://refresh" ;;
         settings) open "barrly://settings" ;;
+        lock)     open "barrly://lock/${2:-on}" ;;
+        sign)     sign ;;
         quit)     pkill -x Barrly ;;
-        ""|start) open -a "$app" ;;
-        *) echo "usage: barrly [start|zen|refresh|settings|quit]"; exit 2 ;;
+        ""|start) sign; open -a "$app" ;;
+        *) echo "usage: barrly [start|zen|refresh|settings|lock [on|off]|sign|quit]"; exit 2 ;;
       esac
     SH
-  end
-
-  # Re-sign with the user's "Barrly Code Signing" identity (see scripts/make-signing-identity.sh) so the
-  # code identity, and with it Accessibility and other privacy grants, survives upgrades.
-  def post_install
-    identity = "Barrly Code Signing"
-    return unless Utils.safe_popen_read("/usr/bin/security", "find-identity", "-v", "-p", "codesigning").include?(identity)
-    system "/usr/bin/codesign", "--force", "--deep", "--sign", identity, prefix/"Barrly.app"
   end
 
   service do
@@ -64,9 +67,10 @@ class Barrly < Formula
     <<~EOS
       Barrly.app is at #{opt_prefix}/Barrly.app, built on this machine.
 
-      Privacy grants (Accessibility for the input lock, Calendars) stick across upgrades only with a
-      stable signing identity. Create one once with the repo's scripts/make-signing-identity.sh;
-      the formula then signs with it automatically (otherwise the app is ad-hoc signed).
+      The build is ad-hoc signed, so macOS privacy grants (Accessibility for the input lock, Calendars)
+      would be lost on every upgrade. Create a stable local identity once with the repo's
+      scripts/make-signing-identity.sh; `barrly start` and `barrly sign` then re-sign the app with
+      it after each upgrade (Homebrew's sandbox cannot reach the keychain, so this runs outside it).
 
       Start it with `barrly`, or at login with either
         brew services start barrly
